@@ -1,9 +1,12 @@
 package com.rachel.order.service;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.client.ServiceInstance;
 import org.springframework.stereotype.Service;
@@ -14,6 +17,8 @@ import com.rachel.order.model.Order;
 import com.rachel.order.repository.OrderRepository;
 import com.rachel.order.vo.Produk;
 import com.rachel.order.vo.ResponseTemplate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 import jakarta.transaction.Transactional;
 
@@ -32,8 +37,21 @@ public class OrderService {
         return orderRepository.findAll();
     }
 
+    @Autowired
+    private RabbitTemplate rabbitTemplate;
+
+    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
     public Order createOrder(Order order) {
-        return orderRepository.save(order);
+        order.setTanggal(LocalDateTime.now().format(formatter));
+        Order savedOrder = orderRepository.save(order);
+        System.out.println("ID dikirim: " + savedOrder.getId());
+        rabbitTemplate.convertAndSend(
+                "",
+                "order.notification.queue",
+                savedOrder);
+
+        return savedOrder;
     }
 
     @Transactional
@@ -67,4 +85,5 @@ public class OrderService {
     public void deleteOrder(Long id) {
         orderRepository.deleteById(id);
     }
+
 }
